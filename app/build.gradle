@@ -25,4 +25,9 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:appcompat-v7:23.2.0'
+    compile files('libs/concurrent-jaxed.jar')
+    compile files('libs/fec-linux-x86.jar')
+    compile files('libs/fec-win32.jar')
+    compile files('libs/log4j.jar')
+    compile files('libs/onion-common.jar')
 }
