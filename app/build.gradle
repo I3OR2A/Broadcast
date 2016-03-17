@@ -20,6 +20,10 @@ android {
     aaptOptions {
         additionalParameters "--no-version-vectors"
     }
+
+    packagingOptions {
+        exclude 'lib/native.properties'
+    }
 }
 
 dependencies {
