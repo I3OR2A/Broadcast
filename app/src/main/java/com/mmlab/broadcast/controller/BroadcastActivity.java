@@ -1,15 +1,18 @@
 package com.mmlab.broadcast.controller;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.mmlab.broadcast.R;
 
 public class BroadcastActivity extends AppCompatActivity {
+
+    private static final String TAG = BroadcastActivity.class.getName();
 
     BroadcastService broadcastService;
 
@@ -20,11 +23,30 @@ public class BroadcastActivity extends AppCompatActivity {
 
         broadcastService = new BroadcastService(getApplicationContext());
 
+        broadcastService.setOnFinishedListener(new BroadcastService.OnFinishedListener() {
+            public void onFinished(BroadcastService broadcastService) {
+                Toast.makeText(getApplicationContext(), "onFinished()", Toast.LENGTH_LONG).show();
+            }
+        });
+
+        broadcastService.setOnReceivedListener(new BroadcastService.OnReceivedListener() {
+            public void onReceived(BroadcastService broadcastService) {
+                Toast.makeText(getApplicationContext(), "onReceived()", Toast.LENGTH_LONG).show();
+            }
+        });
+
+        broadcastService.setOnCompletedListener(new BroadcastService.OnCompletedListener() {
+            public void onCompleted(BroadcastService broadcastService) {
+                Toast.makeText(getApplicationContext(), "onCompleted()", Toast.LENGTH_LONG).show();
+            }
+        });
+
         Button button_send = (Button) findViewById(R.id.button_send);
         button_send.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                broadcastService.send(BroadcastService.TYPE_URL, "http://deh.csie.ncku.edu.tw/deh/functions/pic_add_watermark.php?src=player_pictures/20150305182420_455_.jpg", true, 2);
+//                broadcastService.send(BroadcastService.TYPE_URL, "http://deh.csie.ncku.edu.tw/deh/functions/pic_add_watermark.php?src=player_pictures/20150305182420_455_.jpg", true, 2);
+                broadcastService.send(BroadcastService.TYPE_TEXT, 123, "Test", true, 2);
             }
         });
 

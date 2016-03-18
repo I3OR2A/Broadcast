@@ -110,16 +110,23 @@ public class BroadcastService {
     }
 
     public void release() {
-
     }
 
-    public void send(int type, String input, boolean enabled, int magnification) {
+    public void send(int type, String input, boolean enabled, double magnification) {
         Sender sender = new Sender(type, input);
-        if(TYPE_URL == type || TYPE_FILE == type)
+        if (TYPE_URL == type || TYPE_FILE == type)
             sender.setFileName(input.substring(input.lastIndexOf("/") + 1, input.length()));
-        else
-            sender.setFileName("poi.txt");
+//        else
+//            sender.setFileName("poi.txt");
         sender.setFECEnabled(enabled);
+        sender.setMagnification(magnification);
+        senders.add(sender);
+        sender.execute();
+    }
+
+    public void send(int type, int id, String input, boolean enabled, double magnification) {
+        Sender sender = new Sender(type, input);
+        sender.setFileName(id + ".txt");
         sender.setMagnification(magnification);
         senders.add(sender);
         sender.execute();
@@ -193,6 +200,10 @@ public class BroadcastService {
                 inetAddress = InetAddress.getByName(broadcastAddress);
 
                 send();
+
+                if (mEventHandler != null) {
+                    mEventHandler.obtainMessage(EVENT_COMPLETE_ACTION).sendToTarget();
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
@@ -212,17 +223,19 @@ public class BroadcastService {
                 int dataLength = data.length;
                 int k = (int) Math.ceil(dataLength / (float) CHUNCK_SIZE);
                 sender_groups = k;
-                for (int i = 0; i < k; ++i) {
-                    if (i == (k - 1)) {
+                for (int i = 0; i < sender_groups; i++) {
+                    Log.d(TAG, "current group :" + i);
+                    int index = i * CHUNCK_SIZE;
+                    if (i == (sender_groups - 1)) {
                         if (isFEC)
-                            fecSendBytes(Arrays.copyOfRange(data, i * CHUNCK_SIZE, dataLength - i * CHUNCK_SIZE));
+                            fecSendBytes(Arrays.copyOfRange(data, index, index + dataLength - i * CHUNCK_SIZE));
                         else
-                            norSendBytes(Arrays.copyOfRange(data, i * CHUNCK_SIZE, dataLength - i * CHUNCK_SIZE));
+                            norSendBytes(Arrays.copyOfRange(data, index, index + dataLength - i * CHUNCK_SIZE));
                     } else {
-                        if (isFEC)
-                            fecSendBytes(Arrays.copyOfRange(data, i * CHUNCK_SIZE, CHUNCK_SIZE));
-                        else
-                            norSendBytes(Arrays.copyOfRange(data, i * CHUNCK_SIZE, CHUNCK_SIZE));
+                        if (isFEC) {
+                            fecSendBytes(Arrays.copyOfRange(data, index, index + CHUNCK_SIZE));
+                        } else
+                            norSendBytes(Arrays.copyOfRange(data, index, index + CHUNCK_SIZE));
                     }
                     sender_groupNumber++;
                 }
@@ -575,14 +588,14 @@ public class BroadcastService {
             if (fileOutputStream != null) {
                 try {
                     fileOutputStream.flush();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
 
                 try {
                     fileOutputStream.close();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }
@@ -590,6 +603,7 @@ public class BroadcastService {
 
     private static final int EVENT_FINISH_ACTION = 0;
     private static final int EVENT_RECEIVE_ACTION = 1;
+    private static final int EVENT_COMPLETE_ACTION = 2;
 
     private class EventHandler extends Handler {
 
@@ -603,6 +617,24 @@ public class BroadcastService {
         }
 
         public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case EVENT_FINISH_ACTION:
+                    if (mOnFinishedListener != null) {
+                        mOnFinishedListener.onFinished(BroadcastService.this);
+                    }
+                    break;
+                case EVENT_RECEIVE_ACTION:
+                    if (mOnReceivedListener != null) {
+                        mOnReceivedListener.onReceived(BroadcastService.this);
+                    }
+                    break;
+                case EVENT_COMPLETE_ACTION:
+                    if (mOnCompletedListener != null) {
+                        mOnCompletedListener.onCompleted(BroadcastService.this);
+                    }
+                    break;
+                default:
+            }
             super.handleMessage(msg);
         }
     }
@@ -710,13 +742,13 @@ public class BroadcastService {
                                     mEventHandler.obtainMessage(EVENT_FINISH_ACTION).sendToTarget();
                                 }
 
-                                if (!name.contains("txt")) {
-                                    if (!isFEC)
-                                        norRecv(name, receiver_imageData, receiver_slicesCol);
-                                    else {
-                                        fecRecv(name, receiver_imageData, receiver_slicesCol);
-                                    }
+//                                if (!name.contains("txt")) {
+                                if (!isFEC)
+                                    norRecv(name, receiver_imageData, receiver_slicesCol);
+                                else {
+                                    fecRecv(name, receiver_imageData, receiver_slicesCol);
                                 }
+//                                }
                                 mEventHandler.obtainMessage(EVENT_RECEIVE_ACTION).sendToTarget();
                             }
                         }
@@ -743,6 +775,56 @@ public class BroadcastService {
             }
         }
         return null;
+    }
+
+    public OnPreparedListener mOnPreparedListener;
+
+    interface OnPreparedListener {
+        void onPrepared(BroadcastService broadcastService);
+    }
+
+    public void setOnPreparedListener(OnPreparedListener onPreparedListener) {
+        this.mOnPreparedListener = onPreparedListener;
+    }
+
+    public OnErrorListener mOnErrorListener;
+
+    interface OnErrorListener {
+        void onError(BroadcastService broadcastService, int wat, int extra);
+    }
+
+    public void setOnErrorListener(OnErrorListener onErrorListener) {
+        this.mOnErrorListener = onErrorListener;
+    }
+
+    public OnReceivedListener mOnReceivedListener;
+
+    interface OnReceivedListener {
+        void onReceived(BroadcastService broadcastService);
+    }
+
+    public void setOnReceivedListener(OnReceivedListener onReceivedListener) {
+        this.mOnReceivedListener = onReceivedListener;
+    }
+
+    public OnFinishedListener mOnFinishedListener;
+
+    interface OnFinishedListener {
+        void onFinished(BroadcastService broadcastService);
+    }
+
+    public void setOnFinishedListener(OnFinishedListener onFinishedListener) {
+        this.mOnFinishedListener = onFinishedListener;
+    }
+
+    public OnCompletedListener mOnCompletedListener;
+
+    interface OnCompletedListener {
+        void onCompleted(BroadcastService broadcastService);
+    }
+
+    public void setOnCompletedListener(OnCompletedListener onCompletedListener) {
+        this.mOnCompletedListener = onCompletedListener;
     }
 }
 
